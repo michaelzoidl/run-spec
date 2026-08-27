@@ -208,6 +208,74 @@ def tally(criteria):
     return t
 
 
+def _seams(x):
+    return set(x.get("seam") or [])
+
+
+def deps_report(criteria, run):
+    """Which open criteria could start right now, and what blocks the rest.
+
+    This is the part a human orchestrator gets wrong. A seam locked for one
+    agent silently unassigns every other criterion touching that file — and
+    from the outside "blocked" and "forgotten" look identical. In the run this
+    skill was built from, one spec line stayed unassigned for six ticks that
+    way. The machine is better at this than a person, so let the machine do it.
+    """
+    by_id = {x["id"]: x for x in criteria}
+    live = [x for x in criteria if x.get("status") != "dropped"]
+
+    # Which seam is held by which agent, via the criteria that agent holds.
+    holder = {}
+    for ag in run.get("agents", []):
+        if ag.get("state") != "running":
+            continue
+        for cid in ag.get("criteria", []):
+            for s in _seams(by_id.get(cid, {})):
+                holder.setdefault(s, ag.get("name", "?"))
+    # A criterion marked running without a recorded agent still holds its seam.
+    for x in live:
+        if x["status"] == "running":
+            for s in _seams(x):
+                holder.setdefault(s, "(running, no agent recorded)")
+
+    unknown = [(x["id"], d) for x in live
+               for d in (x.get("depends_on") or []) if d not in by_id]
+
+    cycles, done = [], set()
+
+    def walk(i, stack):
+        if i in done:
+            return
+        if i in stack:
+            cycles.append(" -> ".join(stack[stack.index(i):] + [i]))
+            return
+        stack.append(i)
+        for dep in by_id.get(i, {}).get("depends_on") or []:
+            if dep in by_id:
+                walk(dep, stack)
+        stack.pop()
+        done.add(i)
+
+    for x in live:
+        walk(x["id"], [])
+
+    ready, blocked = [], []
+    for x in live:
+        if x["status"] != "open" or x.get("reachable", "build") != "build":
+            continue
+        unmet = [d for d in (x.get("depends_on") or [])
+                 if by_id.get(d, {}).get("status") != "met"]
+        busy = sorted(s for s in _seams(x) if s in holder)
+        if unmet:
+            blocked.append((x, "waits on " + ", ".join(unmet)))
+        elif busy:
+            blocked.append((x, f"seam held by {holder[busy[0]]} ({os.path.basename(busy[0])})"))
+        else:
+            ready.append(x)
+    return {"ready": ready, "blocked": blocked, "unknown_deps": unknown,
+            "cycles": sorted(set(cycles)), "holder": holder}
+
+
 def cmd_status(a):
     d = run_dir(a.slug)
     reg, run = read(d, "register.json", {}), read(d, "run.json", {})
@@ -234,11 +302,24 @@ def cmd_status(a):
     for ag in live:
         print(f"  · {ag.get('name','?'):<22} {ag.get('model','?'):<7} "
               f"{','.join(ag.get('criteria', [])):<14} {ag.get('package','')[:60]}")
-    if t["buildable_open"]:
-        print("\nOPEN AND BUILDABLE (this is the honest work list):")
-        for x in sorted(t["buildable_open"], key=lambda x: (x.get("group", ""), x["id"])):
+    dep = deps_report(c, run)
+    for cid, missing in dep["unknown_deps"]:
+        print(f"\n!! {cid} depends_on {missing} — no such criterion")
+    for cyc in dep["cycles"]:
+        print(f"\n!! dependency cycle: {cyc} — nothing in it can ever start")
+
+    if dep["ready"]:
+        free = run.get("max_agents", 4) - len(live)
+        print(f"\nREADY NOW ({len(dep['ready'])}) — deps met, seam free, nobody on it:")
+        for x in sorted(dep["ready"], key=lambda x: (x.get("group", ""), x["id"])):
             print(f"  {x['id']:<8} [{x.get('complexity','?'):<9}] "
-                  f"{x.get('group','')[:18]:<18} {x['criterion'][:70]}")
+                  f"{x.get('group','')[:18]:<18} {x['criterion'][:66]}")
+        if free > 0:
+            print(f"  >>> {free} free slot(s). Dispatch, or say in the report why not.")
+    if dep["blocked"]:
+        print(f"\nBLOCKED ({len(dep['blocked'])}):")
+        for x, why in sorted(dep["blocked"], key=lambda p: p[0]["id"]):
+            print(f"  {x['id']:<8} {why[:44]:<46} {x['criterion'][:52]}")
     if run.get("waiting_on_you"):
         print(f"\nWAITING ON YOU ({len(run['waiting_on_you'])}):")
         for q in run["waiting_on_you"]:
@@ -436,7 +517,11 @@ def cmd_dash(a):
     o.append('<section class="tiles">')
     o.append(tile(share, "Buildable closed", f"{t['buildable_met']} of {t['buildable']}", "t-good"))
     o.append(tile(f"{len(live)}", "Agents at work", f"of {run.get('max_agents', 4)} slots", "t-accent"))
-    o.append(tile(f"{n_open}", "Waiting for an agent", "open and buildable", "t-warn"))
+    dep = deps_report(reg.get("criteria", []), run)
+    n_ready = len(dep["ready"])
+    o.append(tile(f"{n_ready}", "Ready, unassigned",
+                  f"of {n_open} open" + (" — dispatch these" if n_ready else ""),
+                  "t-warn" if n_ready else "t-quiet"))
     o.append(tile(f"{n_other}", "No agent can close", ", ".join(
         f"{r} {len(v)}" for r, v in sorted(t["not_buildable"].items())) or "—", "t-quiet"))
     o.append("</section>")
@@ -491,7 +576,10 @@ def cmd_dash(a):
             if reach != "build":
                 right.append(f'<span class="chip grey">{e(WHY.get(reach, reach))}</span>')
             elif st == "open":
+                why = next((w for cx, w in dep["blocked"] if cx["id"] == x["id"]), None)
                 right.append(f'<span class="chip grey mono">{e(x.get("complexity", "?"))}</span>')
+                right.append(f'<span class="chip grey">{e(why)}</span>' if why
+                             else '<span class="chip">ready</span>')
             elif st == "running":
                 right.append('<span class="chip">in progress</span>')
             if st == "met":

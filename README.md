@@ -43,7 +43,10 @@ the target; 100 % of the buildable is.
    holds up, run the gate, commit on green. No branch is ever deleted.
 2. **Reconcile** — fill in evidence: file path, test name, gate result. Half a
    check is open, with a better note — not a tick.
-3. **Dispatch** — cut the next package along one coherent seam and route it:
+3. **Dispatch** — the register is a graph: each criterion records the files it
+   touches (`seam`) and what must be done first (`depends_on`), so the tool
+   computes what is startable instead of the orchestrator guessing. Cut the
+   next package along one coherent seam and route it:
 
    | Complexity | Model |
    |---|---|

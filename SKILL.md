@@ -160,11 +160,21 @@ seam belong in **one** package, or the branches collide.
 | `hard` | `opus` | half-built, wiring or measurement missing; salvage; supervision; diff review |
 | `very_hard` | `fable` | new subsystem, several seams, none of it exists yet |
 
-**Keep a list of locked seams and re-check it every tick.** When you forbid a
-file because another agent holds it, that work does not disappear — it becomes
-unassigned. Write down which criterion is waiting on which file, and hand it
-out the moment the file frees up. A whole spec line was lost this way once,
-and only the final measurement found it.
+**Do not work out by hand what is startable — `status` computes it.** With
+`seam` and `depends_on` filled in, it prints `READY NOW` (dependencies met,
+seam free, nobody on it) and `BLOCKED` with the reason for each. It also names
+broken dependency references and cycles, which otherwise look like patience.
+
+If `READY NOW` is non-empty and slots are free, this tick dispatches — or the
+report says why not. That sentence exists because the alternative is a
+criterion nobody is working on that nobody notices.
+
+**Anything you defer becomes a criterion.** When you tell an agent "that part
+is explicitly not your job" — because another agent holds the file, because it
+needs something that doesn't exist yet — that work does not survive as a
+sentence in a brief. Write it into the register with its seam and dependency.
+A spec line was lost exactly this way once: deferred in one brief, never
+recorded, found six ticks later by the closing measurement.
 
 Start the agent with `isolation: "worktree"`, `model` from the table, `name` =
 package name. Then update `run.json` → `agents[]` with

@@ -22,6 +22,8 @@ tick, and afterwards only reconciled — never reworded to make a tick possible.
       "status": "open",
       "reachable": "build",
       "complexity": "medium",
+      "seam": ["src/detect/references.ts"],
+      "depends_on": ["C01"],
       "evidence": null,
       "note": null
     }
@@ -32,6 +34,35 @@ tick, and afterwards only reconciled — never reworded to make a tick possible.
 `status`: `open` · `running` · `met` · `dropped`
 `reachable`: `build` · `data` · `external` · `operations`
 `complexity`: `simple` · `medium` · `hard` · `very_hard`
+`seam`: the files this criterion changes — used to detect collisions
+`depends_on`: criterion ids that must be `met` first
+
+## Seam and depends_on — let the machine do the bookkeeping
+
+These two fields turn the register from a list into a graph, and `runspec.py
+status` then computes what a person keeps getting wrong:
+
+- **READY NOW** — open, dependencies met, seam free, nobody on it. If slots are
+  free and this list isn't empty, the tick has to dispatch or say why not.
+- **BLOCKED** — with the reason: which dependency, or which agent holds the seam.
+- **broken references and cycles**, loudly. A criterion depending on a typo'd id
+  waits forever and looks merely patient.
+
+Fill `seam` with the files an agent would actually touch, not every file it
+reads. Two criteria sharing a seam must not run at the same time — that is the
+whole point of recording it.
+
+Keep `depends_on` to real ordering constraints ("this cannot be checked until
+that exists"), not to preferences about sequence. An over-constrained graph
+serialises work that could have run in parallel.
+
+**Anything you defer becomes a criterion.** When you cut a package and set part
+of it aside — because another agent holds the file, because it needs something
+that doesn't exist yet — that part does not survive as a sentence in a prompt.
+Write it into the register with its seam and its dependency, and the graph will
+hand it back the moment it becomes possible. A spec line lost exactly this way
+in the run this skill was built from: deferred in one brief, never written down,
+and only found six ticks later by the closing measurement.
 
 ## Where criteria come from
 
