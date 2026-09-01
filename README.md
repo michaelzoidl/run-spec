@@ -1,6 +1,14 @@
-# run-spec
+<p align="center">
+  <img src="assets/cover.png" alt="run-spec" width="340">
+</p>
 
-A Claude Code skill that carries a specification to completion on its own.
+<h1 align="center">run-spec</h1>
+
+<p align="center">
+  A Claude Code skill that carries a specification to completion on its own.
+</p>
+
+---
 
 You point it at a Markdown or HTML file — or just a sentence — and it derives an
 **acceptance register** from it, cuts the work into packages, routes each package
@@ -12,6 +20,21 @@ One invocation is exactly one tick. For continuous operation:
 ```bash
 /loop 10m /run-spec docs/SPEC-SEARCH.md
 ```
+
+## Install
+
+```bash
+./install.sh          # symlinks into ~/.claude/skills/run-spec
+```
+
+Then, in any project:
+
+```bash
+/run-spec path/to/SPEC.md
+```
+
+Requires Claude Code with subagent support, `git`, and `python3` (standard
+library only — no dependencies).
 
 ## Why a register
 
@@ -37,6 +60,30 @@ The run ends when every `build` criterion is closed, and the closing report name
 the others individually with the reason no agent could close them. 90 % is not
 the target; 100 % of the buildable is.
 
+## Before anything is dispatched
+
+Tick 0 starts nothing. It sets up the conditions under which an unattended run
+is allowed to mean something:
+
+1. **Read the source in full** and derive the register from it — see
+   [`reference/register.md`](reference/register.md). Ten to sixty criteria is
+   healthy; more than that and the file is really several runs.
+2. **Find out what the gate does *not* cover.** Test runners built on
+   transpilers (`tsx`, `ts-node`, `swc`, `babel-jest`) typically do not
+   typecheck — a type error lands invisibly. If the missing check is
+   *measurably clean* on the current tree, it becomes part of the gate. If it is
+   already red, it does not, because that hands every agent a failure that isn't
+   theirs.
+3. **Run the gate once.** Red at tick 0 is the tick's result. Nothing starts.
+4. **Derive the worktree recipe** — the step people skip. Agents work in fresh
+   git worktrees, and a fresh worktree is missing exactly what `.gitignore`
+   excludes: `node_modules`, built workspace `dist/`, `.env`, local fixtures.
+   Measured in a real project: 8 tests red in a worktree that were green in the
+   main tree, none of it the agent's doing. So the recipe is derived once
+   against a throwaway worktree, closing the gap one cause at a time until the
+   pass count matches — and then goes into **every** brief verbatim, with the
+   expected count and the instruction to stop if it doesn't match.
+
 ## What it actually does per tick
 
 1. **Harvest** — read each agent branch's diff (read it, not count it), land what
@@ -59,8 +106,36 @@ the target; 100 % of the buildable is.
 5. **Report** — what was harvested, landed, started. A quiet tick is a result.
 
 Agents run in isolated git worktrees, commit on `run-spec/<run>/<criteria>`, and
-are forbidden from touching the register. Run state lives in
-`~/.claude/runs/<project>/<run>/` — no foreign repository gets polluted.
+are forbidden from touching the register.
+
+## The graph does the bookkeeping
+
+`seam` and `depends_on` are what keep an unattended run from stalling politely.
+`status` computes, instead of the orchestrator recalling:
+
+- **READY NOW** — open, dependencies met, seam free, nobody on it. If slots are
+  free and this list isn't empty, the tick dispatches or the report says why not.
+- **BLOCKED**, with the reason: which dependency, or which agent holds the file.
+- **Broken references and cycles**, loudly. A criterion depending on a typo'd id
+  waits forever and looks merely patient.
+
+Two criteria on one seam never run at the same time — that is the entire reason
+the field exists.
+
+**Anything deferred becomes a criterion.** When a brief says "that part is
+explicitly not your job", that work does not survive as a sentence in a prompt.
+It goes into the register with its seam and its dependency, and the graph hands
+it back the moment it becomes possible. A spec line was lost exactly this way
+once: deferred in one brief, never recorded, found six ticks later by the
+closing measurement.
+
+## Open questions do not stop the run
+
+A question becomes a decision with a reason, recorded in `waiting_on_you`, and
+sits at the top of the dashboard — visible to overturn, but not blocking. When in
+doubt the run takes the variant that is *measurable*, and the variant that makes
+a failure *loud* rather than smoothing it over. It stops only if continuing would
+break something unrecoverable.
 
 ## The part that surprised me
 
@@ -91,20 +166,26 @@ script rather than estimated. But the specification errors were worth more than
 the fix, and none of them would have surfaced if the agents had been told to
 satisfy their criteria rather than test them.
 
-## Install
+## Run state
 
-```bash
-./install.sh          # symlinks into ~/.claude/skills/run-spec
+Nothing lives in your repository except the branches. Run state sits under
+`~/.claude/runs/<project>/<run>/` — no foreign checkout gets polluted:
+
+```
+register.json    criteria, checks, seams, dependencies, evidence
+run.json         tick, agents, worktree recipe, artifact URL, open questions
+dashboard.html   generated from both — no number by hand
 ```
 
-Then, in any project:
+The tool that maintains it has no dependencies and is callable on its own:
 
 ```bash
-/run-spec path/to/SPEC.md
+scripts/runspec.py init --goal "…" [--source SPEC.md] [--gate "…"]
+scripts/runspec.py status      # tally · agents · READY NOW · BLOCKED · cycles
+scripts/runspec.py dash        # regenerate dashboard.html
+scripts/runspec.py list        # runs for this project
+scripts/runspec.py active <slug>
 ```
-
-Requires Claude Code with subagent support, `git`, and `python3` (standard
-library only — no dependencies).
 
 ## Layout
 
@@ -112,6 +193,7 @@ library only — no dependencies).
 SKILL.md              the tick, the routing table, the agent brief, the traps
 reference/register.md how to turn a document into checkable criteria
 scripts/runspec.py    run state + dashboard generator, no dependencies
+install.sh            symlink into ~/.claude/skills
 ```
 
 ## What it does not do
