@@ -331,119 +331,145 @@ def cmd_status(a):
 # ---------------------------------------------------------------- dashboard
 
 CSS = """<style>
+/* Claude's warm neutral scale — oat and paper in light, near-black warm greys
+   in dark — with the orange as the one accent. Same three-block shape the
+   Artifact viewer needs: bare :root, prefers-color-scheme, [data-theme]. */
 :root{
-  --ground:#F4F6FA; --surface:#FFFFFF; --surface-2:#EAEFF7;
-  --ink:#141922; --muted:#5A6577; --line:#DCE2EC;
-  --accent:#2B4C9B; --accent-soft:#DFE7F6;
-  --good:#1B7A4B; --warn:#9A6400; --critical:#B03024; --quiet:#96A0B0;
-  --shadow:0 1px 2px rgba(20,25,34,.05),0 2px 10px rgba(20,25,34,.04);
+  --ground:#FAF9F5; --surface:#FFFFFF; --surface-2:#F0EEE6;
+  --ink:#1F1E1D; --muted:#6C6B65; --line:#E7E4DA;
+  --accent:#C96442; --accent-ink:#A8492A; --accent-soft:#F6EAE3;
+  --good:#3D7A5C;
+  --ready:#2A6FC4; --ready-ink:#1C5AA8; --ready-soft:#E6EDF9;
+  --quiet:#82807A;
+  --shadow:0 1px 2px rgba(31,30,29,.05);
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --ground:#0E1116; --surface:#161B23; --surface-2:#1D2430;
-  --ink:#E4E9F2; --muted:#8792A5; --line:#262E3B;
-  --accent:#7CA0F0; --accent-soft:#1C2842;
-  --good:#4FBF83; --warn:#D9A036; --critical:#E5786C; --quiet:#66707E;
-  --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 12px rgba(0,0,0,.25);
+  --ground:#1F1E1D; --surface:#262624; --surface-2:#30302E;
+  --ink:#F5F4EF; --muted:#A3A29C; --line:#373733;
+  --accent:#D97757; --accent-ink:#EC9673; --accent-soft:#3A2A23;
+  --good:#6FB08C;
+  --ready:#7FB3E8; --ready-ink:#8FBEEE; --ready-soft:#20303F;
+  --quiet:#8A8983;
+  --shadow:none;
 }}
 :root[data-theme="dark"]{
-  --ground:#0E1116; --surface:#161B23; --surface-2:#1D2430;
-  --ink:#E4E9F2; --muted:#8792A5; --line:#262E3B;
-  --accent:#7CA0F0; --accent-soft:#1C2842;
-  --good:#4FBF83; --warn:#D9A036; --critical:#E5786C; --quiet:#66707E;
-  --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 12px rgba(0,0,0,.25);
+  --ground:#1F1E1D; --surface:#262624; --surface-2:#30302E;
+  --ink:#F5F4EF; --muted:#A3A29C; --line:#373733;
+  --accent:#D97757; --accent-ink:#EC9673; --accent-soft:#3A2A23;
+  --good:#6FB08C;
+  --ready:#7FB3E8; --ready-ink:#8FBEEE; --ready-soft:#20303F;
+  --quiet:#8A8983;
+  --shadow:none;
 }
 *{box-sizing:border-box}
 body{
   margin:0; background:var(--ground); color:var(--ink);
-  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;
+  font-size:15px; line-height:1.6; letter-spacing:-.006em;
+  -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1080px; margin:0 auto; padding:40px 24px 72px; display:flex; flex-direction:column; gap:28px}
-h1,h2,h3,.label{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif}
-h1{font-size:31px; font-weight:700; margin:0; letter-spacing:-.01em; text-wrap:balance}
-h2{font-size:13px; font-weight:600; margin:0; text-transform:uppercase; letter-spacing:.11em; color:var(--muted)}
-.label{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--muted)}
-.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums}
-.card{background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow)}
+.wrap{max-width:1040px; margin:0 auto; padding:52px 28px 96px; display:flex; flex-direction:column; gap:34px}
+h1{font-size:29px; font-weight:600; line-height:1.3; margin:0; letter-spacing:-.02em; text-wrap:balance}
+h2{font-size:15px; font-weight:500; margin:0; color:var(--muted); letter-spacing:-.006em}
+.label{font-size:13px; font-weight:400; color:var(--muted); letter-spacing:-.004em}
+.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  font-size:.92em; font-variant-numeric:tabular-nums}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow)}
 .sec{display:flex; flex-direction:column; gap:12px}
+.dot{display:inline-block; width:7px; height:7px; border-radius:50%; flex:none}
 
 /* head */
-.head{display:flex; flex-direction:column; gap:10px}
-.eyebrow{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-.eyebrow .tick{color:var(--accent)}
-.goal{font-size:17px; color:var(--muted); max-width:62ch; margin:0; text-wrap:pretty}
+.head{display:flex; flex-direction:column; gap:12px}
+.eyebrow{display:flex; align-items:center; gap:9px; flex-wrap:wrap; font-size:13px; color:var(--muted)}
+.eyebrow .tick{padding:2px 10px; border-radius:999px; font-weight:500;
+  background:var(--accent-soft); color:var(--accent-ink)}
+.goal{font-size:15px; color:var(--muted); max-width:70ch; margin:0; text-wrap:pretty}
 
 /* meter */
-.meter{display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--surface-2); border:1px solid var(--line)}
+.meter{display:flex; height:8px; border-radius:999px; overflow:hidden; background:var(--surface-2)}
 .meter span{display:block; height:100%}
 .m-met{background:var(--good)}
 .m-running{background:var(--accent)}
-.m-open{background:var(--warn); opacity:.5}
-.m-other{background:repeating-linear-gradient(45deg,var(--quiet),var(--quiet) 3px,transparent 3px,transparent 6px); opacity:.55}
-.legend{display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--muted)}
-.legend b{color:var(--ink); font-weight:600}
-.dot{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; vertical-align:baseline}
+.m-open{background:var(--ready); opacity:.55}
+.m-other{background:var(--quiet); opacity:.4}
+.legend{display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--muted)}
+.legend span{display:flex; align-items:center; gap:7px}
+.legend b{color:var(--ink); font-weight:500}
 
 /* tiles */
-.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px}
-.tile{padding:14px 16px; display:flex; flex-direction:column; gap:2px}
-.tile .num{font-size:30px; font-weight:600; line-height:1.1; letter-spacing:-.02em}
-.tile .foot{font-size:12px; color:var(--muted)}
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px}
+.tile{padding:16px 18px; display:flex; flex-direction:column; gap:3px}
+.tile .num{font-size:28px; font-weight:600; line-height:1.15; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.tile .foot{font-size:13px; color:var(--muted)}
 .t-good .num{color:var(--good)} .t-accent .num{color:var(--accent)}
-.t-warn .num{color:var(--warn)} .t-quiet .num{color:var(--quiet)}
+.t-ready .num{color:var(--ready)} .t-quiet .num{color:var(--quiet)}
 
 /* agents */
-.agents{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px}
-.agent{padding:14px 16px; display:flex; flex-direction:column; gap:8px; position:relative; overflow:hidden}
-.agent::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent)}
-.agent .row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
-.agent .name{font-weight:600}
-.agent .package{font-size:13px; color:var(--muted); text-wrap:pretty}
-.chip{font-size:11px; font-weight:600; letter-spacing:.04em; padding:2px 7px; border-radius:20px;
-  background:var(--accent-soft); color:var(--accent); font-family:"IBM Plex Mono",monospace}
+.agents{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px}
+.agent{padding:15px 18px; display:flex; flex-direction:column; gap:7px}
+.agent .row{display:flex; align-items:center; gap:9px; flex-wrap:wrap}
+.agent .name{font-weight:500}
+.agent .package{font-size:14px; color:var(--muted); text-wrap:pretty}
+.chip{font-size:12px; font-weight:500; padding:2px 9px; border-radius:999px;
+  background:var(--accent-soft); color:var(--accent-ink); white-space:nowrap}
 .chip.grey{background:var(--surface-2); color:var(--muted)}
-.pulse{width:7px; height:7px; border-radius:50%; background:var(--accent); animation:pulse 2s ease-in-out infinite; flex:none}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.chip.ready{background:var(--ready-soft); color:var(--ready-ink)}
+.pulse{background:var(--accent); animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media (prefers-reduced-motion:reduce){.pulse{animation:none}}
 
-/* questions */
-.question{padding:12px 16px; border-left:3px solid var(--critical); background:var(--surface);
-  border-radius:0 8px 8px 0; border-top:1px solid var(--line); border-right:1px solid var(--line);
-  border-bottom:1px solid var(--line); font-size:14px; text-wrap:pretty}
-.question .answer{display:block; margin-top:6px; color:var(--muted); font-size:13px}
+/* questions — the same shape Claude gives a row that needs you */
+.question{display:grid; grid-template-columns:auto 1fr; gap:11px; align-items:start;
+  padding:14px 18px; background:var(--surface); border:1px solid var(--line);
+  border-radius:12px; box-shadow:var(--shadow); font-size:14px; text-wrap:pretty}
+.question .dot{background:var(--accent); margin-top:8px}
+.question .answer{display:block; margin-top:5px; color:var(--muted); font-size:13px}
 
 /* register */
 .group{display:flex; flex-direction:column; gap:0; overflow:hidden}
 .group .grouphead{display:flex; justify-content:space-between; align-items:center; gap:12px;
-  padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--line)}
-.crit{display:grid; grid-template-columns:60px 1fr auto; gap:12px; align-items:start;
-  padding:11px 16px 11px 13px; border-bottom:1px solid var(--line); border-left:3px solid transparent}
+  padding:10px 18px; background:var(--surface-2); border-bottom:1px solid var(--line)}
+.group .grouphead .label{color:var(--ink); font-weight:500}
+.crit{display:grid; grid-template-columns:auto 52px 1fr auto; gap:11px; align-items:start;
+  padding:12px 18px; border-bottom:1px solid var(--line); transition:background .12s ease}
 .crit:last-child{border-bottom:none}
-.crit .id{font-size:12px; color:var(--muted)}
+.crit:hover{background:var(--surface-2)}
+.crit .dot{margin-top:9px; background:var(--quiet)}
+.crit .id{font-size:13px; color:var(--muted)}
 .crit .text{display:flex; flex-direction:column; gap:3px; min-width:0}
 .crit .sentence{text-wrap:pretty}
-.crit .evidence{font-size:12px; color:var(--muted); overflow-wrap:anywhere}
+.crit .evidence{font-size:13px; color:var(--muted); overflow-wrap:anywhere}
 .crit .right{display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
-.s-met{border-left-color:var(--good)}
-.s-running{border-left-color:var(--accent); background:var(--accent-soft)}
-.s-open{border-left-color:var(--warn)}
+.s-met .dot{background:var(--good)}
+.s-running .dot{background:var(--accent)}
+.s-open .dot{background:var(--ready); opacity:.7}
 .s-dropped{opacity:.45}
 .s-dropped .sentence{text-decoration:line-through}
-.other{border-left-color:var(--quiet)}
+.other .dot{background:var(--quiet); opacity:.5}
 .other .sentence{color:var(--muted)}
-.check{color:var(--good); font-weight:600}
+.check{color:var(--good)}
 
-.empty{padding:22px 16px; color:var(--muted); font-size:14px}
-.foot{display:flex; gap:20px; flex-wrap:wrap; font-size:12px; color:var(--muted);
-  border-top:1px solid var(--line); padding-top:16px}
-.foot code{font-family:"IBM Plex Mono",monospace; color:var(--ink)}
+/* narrow window: the register row stacks id / sentence / chips instead of
+   squeezing the sentence into what the fixed columns leave over */
+@media (max-width:560px){
+  .wrap{padding:34px 16px 64px}
+  .crit{grid-template-columns:auto 1fr; row-gap:5px}
+  .crit .dot{grid-column:1; grid-row:1}
+  .crit .id{grid-column:2; grid-row:1}
+  .crit .text{grid-column:2; grid-row:2}
+  .crit .right{grid-column:2; grid-row:3; justify-content:flex-start}
+}
+
+.empty{padding:24px 18px; color:var(--muted); font-size:14px}
+.foot{display:flex; gap:22px; flex-wrap:wrap; font-size:13px; color:var(--muted);
+  border-top:1px solid var(--line); padding-top:18px}
+.foot code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.92em; color:var(--ink)}
 </style>"""
 
 FONTS = ('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
          '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
-         'family=IBM+Plex+Mono:wght@400;500;600&'
-         'family=IBM+Plex+Sans+Condensed:wght@600;700&'
-         'family=IBM+Plex+Sans:wght@400;500;600&display=swap">')
+         'family=Inter:wght@400;500;600;700&display=swap">')
 
 WHY = {"build": "", "data": "needs real data", "external": "depends on others",
        "operations": "only measurable in production"}
@@ -455,7 +481,7 @@ def e(x):
 
 def tile(num, label, foot, cls):
     return (f'<div class="tile card {cls}"><div class="label">{e(label)}</div>'
-            f'<div class="num mono">{e(num)}</div><div class="foot">{e(foot)}</div></div>')
+            f'<div class="num">{e(num)}</div><div class="foot">{e(foot)}</div></div>')
 
 
 def page_name(reg):
@@ -490,8 +516,8 @@ def cmd_dash(a):
 
     o = [f"<title>{e(page_name(reg))}</title>", FONTS, CSS, '<div class="wrap">']
 
-    o.append('<header class="head"><div class="eyebrow label">'
-             f'<span class="tick mono">TICK {e(run.get("tick", 0))}</span>'
+    o.append('<header class="head"><div class="eyebrow">'
+             f'<span class="tick">Tick {e(run.get("tick", 0))}</span>'
              f'<span>·</span><span>{e(os.path.basename(d))}</span>'
              + (f'<span>·</span><span class="mono">{e(os.path.basename(reg["source"]))}</span>'
                 if reg.get("source") else "") + "</div>")
@@ -508,8 +534,8 @@ def cmd_dash(a):
              '<div class="legend">'
              f'<span><i class="dot" style="background:var(--good)"></i><b>{n_met}</b> met</span>'
              f'<span><i class="dot" style="background:var(--accent)"></i><b>{n_run}</b> in progress</span>'
-             f'<span><i class="dot" style="background:var(--warn);opacity:.5"></i><b>{n_open}</b> open &amp; buildable</span>'
-             f'<span><i class="dot" style="background:var(--quiet);opacity:.55"></i><b>{n_other}</b> not buildable</span>'
+             f'<span><i class="dot" style="background:var(--ready);opacity:.7"></i><b>{n_open}</b> open &amp; buildable</span>'
+             f'<span><i class="dot" style="background:var(--quiet);opacity:.5"></i><b>{n_other}</b> not buildable</span>'
              "</div></section>")
 
     share = f"{round(100 * t['buildable_met'] / t['buildable']) if t['buildable'] else 0} %"
@@ -521,7 +547,7 @@ def cmd_dash(a):
     n_ready = len(dep["ready"])
     o.append(tile(f"{n_ready}", "Ready, unassigned",
                   f"of {n_open} open" + (" — dispatch these" if n_ready else ""),
-                  "t-warn" if n_ready else "t-quiet"))
+                  "t-ready" if n_ready else "t-quiet"))
     o.append(tile(f"{n_other}", "No agent can close", ", ".join(
         f"{r} {len(v)}" for r, v in sorted(t["not_buildable"].items())) or "—", "t-quiet"))
     o.append("</section>")
@@ -531,11 +557,14 @@ def cmd_dash(a):
         o.append(f'<section class="sec"><h2>Decided — you can overturn ({len(questions)})</h2>')
         for q in questions:
             if isinstance(q, str):
-                o.append(f'<div class="question">{e(q)}</div>')
+                o.append('<div class="question"><i class="dot"></i>'
+                         f'<div>{e(q)}</div></div>')
             else:
                 ans = q.get("decision") or q.get("answer")
-                o.append(f'<div class="question">{e(q.get("question", ""))}'
-                         + (f'<span class="answer">→ {e(ans)}</span>' if ans else "") + "</div>")
+                o.append('<div class="question"><i class="dot"></i><div>'
+                         f'{e(q.get("question", ""))}'
+                         + (f'<span class="answer">→ {e(ans)}</span>' if ans else "")
+                         + "</div></div>")
         o.append("</section>")
 
     o.append('<section class="sec"><h2>At work now</h2>')
@@ -543,7 +572,7 @@ def cmd_dash(a):
         o.append('<div class="agents">')
         for ag in live:
             ids = " ".join(ag.get("criteria", []))
-            o.append('<article class="agent card"><div class="row"><span class="pulse"></span>'
+            o.append('<article class="agent card"><div class="row"><i class="dot pulse"></i>'
                      f'<span class="name">{e(ag.get("name", "?"))}</span>'
                      f'<span class="chip mono">{e(ag.get("model", "?"))}</span>'
                      + (f'<span class="chip grey mono">{e(ids)}</span>' if ids else "")
@@ -579,7 +608,7 @@ def cmd_dash(a):
                 why = next((w for cx, w in dep["blocked"] if cx["id"] == x["id"]), None)
                 right.append(f'<span class="chip grey mono">{e(x.get("complexity", "?"))}</span>')
                 right.append(f'<span class="chip grey">{e(why)}</span>' if why
-                             else '<span class="chip">ready</span>')
+                             else '<span class="chip ready">ready</span>')
             elif st == "running":
                 right.append('<span class="chip">in progress</span>')
             if st == "met":
@@ -589,6 +618,7 @@ def cmd_dash(a):
             else:
                 second = x.get("note") or (x.get("check") if st == "running" else None)
             o.append(f'<div class="{classes}" title="Check: {e(x.get("check", "—"))}">'
+                     '<i class="dot"></i>'
                      f'<div class="id mono">{e(x["id"])}</div>'
                      f'<div class="text"><div class="sentence">{e(x["criterion"])}</div>'
                      + (f'<div class="evidence">{e(second)}</div>' if second else "")
