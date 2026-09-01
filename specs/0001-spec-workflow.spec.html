@@ -1,0 +1,525 @@
+<title>Spec-Level Development</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F4F6FA; --surface:#FFFFFF; --surface-2:#EAEFF7;
+  --ink:#141922; --muted:#5A6577; --line:#DCE2EC;
+  --accent:#2B4C9B; --accent-soft:#DFE7F6;
+  --good:#1B7A4B; --warn:#9A6400; --critical:#B03024; --quiet:#96A0B0;
+  --shadow:0 1px 2px rgba(20,25,34,.05),0 2px 10px rgba(20,25,34,.04);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161B23; --surface-2:#1D2430;
+  --ink:#E4E9F2; --muted:#8792A5; --line:#262E3B;
+  --accent:#7CA0F0; --accent-soft:#1C2842;
+  --good:#4FBF83; --warn:#D9A036; --critical:#E5786C; --quiet:#66707E;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 12px rgba(0,0,0,.25);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161B23; --surface-2:#1D2430;
+  --ink:#E4E9F2; --muted:#8792A5; --line:#262E3B;
+  --accent:#7CA0F0; --accent-soft:#1C2842;
+  --good:#4FBF83; --warn:#D9A036; --critical:#E5786C; --quiet:#66707E;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 12px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:40px 24px 72px; display:flex; flex-direction:column; gap:32px}
+h1,h2,h3,.label{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif}
+h1{font-size:31px; font-weight:700; margin:0; letter-spacing:-.01em; text-wrap:balance}
+h2{font-size:13px; font-weight:600; margin:0; text-transform:uppercase; letter-spacing:.11em; color:var(--muted)}
+.label{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--muted)}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums}
+code{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em;
+  background:var(--surface-2); padding:1px 5px; border-radius:4px; overflow-wrap:anywhere}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow)}
+.sec{display:flex; flex-direction:column; gap:12px}
+p{margin:0; text-wrap:pretty}
+
+/* head */
+.head{display:flex; flex-direction:column; gap:10px}
+.eyebrow{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.eyebrow .no{color:var(--accent)}
+.goal{font-size:17px; color:var(--muted); max-width:62ch}
+
+/* prose block */
+.prose{padding:16px 18px; display:flex; flex-direction:column; gap:10px; font-size:14px; max-width:82ch}
+.prose ul{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:7px}
+.prose li{text-wrap:pretty}
+.prose .fact{color:var(--muted)}
+
+/* criteria */
+.group{display:flex; flex-direction:column; gap:0; overflow:hidden}
+.grouphead{display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:9px 16px; background:var(--surface-2); border-bottom:1px solid var(--line)}
+ul.crits{list-style:none; margin:0; padding:0}
+.crit{display:grid; grid-template-columns:52px 1fr; gap:0 12px; align-items:start;
+  padding:14px 16px 14px 13px; border-bottom:1px solid var(--line); border-left:3px solid var(--quiet)}
+.crit:last-child{border-bottom:none}
+.crit:has(.chip[data-reachable="build"]){border-left-color:var(--accent)}
+.crit .body{display:flex; flex-direction:column; gap:6px; min-width:0; max-width:76ch}
+.sentence{font-weight:500}
+.check{font-size:13.5px; color:var(--muted)}
+.check .k{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.08em; color:var(--good); margin-right:7px}
+.counter .k{color:var(--critical)}
+.meta{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px}
+
+/* every machine field is written once, as an attribute, and rendered from it */
+.id::before{content:attr(data-id)}
+.chip[data-reachable]::before{content:attr(data-reachable)}
+.chip[data-complexity]::before{content:attr(data-complexity)}
+.seam::before{content:attr(data-seam)}
+.chip[data-depends]::before{content:"after " attr(data-depends)}
+.id{font-size:12px; color:var(--muted); padding-top:1px}
+.chip{font-size:11px; font-weight:600; letter-spacing:.04em; padding:2px 7px; border-radius:20px;
+  background:var(--accent-soft); color:var(--accent); font-family:"IBM Plex Mono",monospace}
+.chip.grey{background:var(--surface-2); color:var(--muted)}
+.seam{font-size:12px; color:var(--muted); overflow-wrap:anywhere}
+
+/* decisions + questions */
+.decision{padding:12px 16px; border-left:3px solid var(--accent); background:var(--surface);
+  border-radius:0 8px 8px 0; border-top:1px solid var(--line); border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line); font-size:14px}
+.decision .why{display:block; margin-top:5px; color:var(--muted); font-size:13px}
+.question{padding:12px 16px; border-left:3px solid var(--critical); background:var(--surface);
+  border-radius:0 8px 8px 0; border-top:1px solid var(--line); border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line); font-size:14px}
+.question .lean{display:block; margin-top:5px; color:var(--muted); font-size:13px}
+.stack{display:flex; flex-direction:column; gap:10px}
+
+.foot{display:flex; gap:20px; flex-wrap:wrap; font-size:12px; color:var(--muted);
+  border-top:1px solid var(--line); padding-top:16px}
+</style>
+
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow label">
+    <span class="no mono">SPEC 0001</span><span>·</span><span>draft</span>
+    <span>·</span><span class="mono">2026-09-02</span>
+    <span>·</span><span class="mono">dc9060e</span>
+  </div>
+  <h1>Developing at the spec level</h1>
+  <p class="goal">A project has a <code>specs/</code> folder that holds what "green" means here and
+  the specs written against it — so run-spec starts warm instead of re-deriving the same
+  facts every run, and reads its register instead of guessing it out of prose.</p>
+</header>
+
+<section class="sec">
+  <h2>Today</h2>
+  <div class="card prose">
+    <ul>
+      <li>run-spec is a single skill: <code>SKILL.md</code>, <code>reference/register.md</code>,
+        <code>scripts/runspec.py</code> (627 lines, standard library only).
+        Subcommands are <code>init · where · status · dash · list · active</code>
+        <span class="fact">— runspec.py:612</span></li>
+      <li><b>Tick 0 re-derives the same project facts every single run.</b> The gate is guessed
+        from <code>package.json</code>/<code>pyproject.toml</code>/<code>Cargo.toml</code>/<code>go.mod</code>/<code>Makefile</code>
+        <span class="fact">— <code>guess_gate()</code>, runspec.py:93</span>, and the worktree recipe is derived
+        against a throwaway worktree by hand <span class="fact">— SKILL.md, tick 0 steps 3–5</span>.
+        Both are properties of the project, not of the run.</li>
+      <li><b>The register is derived from prose by the model.</b> There is no parser: nothing in
+        <code>runspec.py</code> reads a spec file. <code>cmd_init</code> writes
+        <code>"criteria": []</code> and the model fills it <span class="fact">— runspec.py:121</span>.
+        The most expensive step of tick 0 is also the least reproducible one.</li>
+      <li>The dashboard's design tokens live inline in <code>runspec.py:333–441</code>. There is no
+        second consumer yet, so nothing has drifted — and nothing prevents it either.</li>
+      <li>On this machine <code>~/.claude/skills/run-spec</code> is a real directory holding an
+        older German <code>SKILL.md</code> (27 Aug), not a symlink to this repository. So
+        <code>/run-spec</code> currently runs a copy that predates <code>seam</code>/<code>depends_on</code>
+        (<code>dc9060e</code>), and <code>install.sh</code> refuses to replace it without saying how to
+        clear it.</li>
+      <li>Nothing about a specs folder exists. This spec is the first file in one.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>Not in this scope</h2>
+  <div class="card prose">
+    <ul>
+      <li>Run state stays outside the project, under <code>~/.claude/runs/&lt;project&gt;/&lt;run&gt;/</code>.
+        The specs folder holds source, not state.</li>
+      <li>Markdown specs keep working. HTML is the format <code>/new-spec</code> writes, not a
+        requirement run-spec imposes.</li>
+      <li>No web UI, no server, no build step. A spec is one file you can open by
+        double-clicking it.</li>
+      <li>The tick itself — harvest, reconcile, dispatch — is not changed here beyond where
+        tick 0 gets its facts from.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>A · The project learns what green means</h2>
+  <div class="card group">
+    <div class="grouphead"><span class="label">spec-init</span><span class="label">6 criteria</span></div>
+    <ul class="crits">
+
+      <li class="crit">
+        <span class="id mono" data-id="A01"></span>
+        <div class="body">
+          <p class="sentence">In a project without one, <code>/spec-init</code> leaves behind a specs folder
+            that explains itself, and running it twice changes nothing.</p>
+          <p class="check"><span class="k">Check</span> After <code>/spec-init</code> in a git repo with no
+            <code>specs/</code>: <code>specs/spec.config.json</code> and <code>specs/README.md</code> exist and
+            <code>git status --short</code> lists exactly those two as untracked. The README names the
+            config's fields and the two commands.</p>
+          <p class="check counter"><span class="k">Counter</span> A second <code>/spec-init</code> writes no
+            file — <code>specs/spec.config.json</code> keeps its mtime — and says the folder already exists.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="simple"></span><span class="seam mono" data-seam="skills/spec-init/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="A02"></span>
+        <div class="body">
+          <p class="sentence">The gate in the config was measured, not guessed — and a red gate is
+            recorded as red rather than rounded up.</p>
+          <p class="check"><span class="k">Check</span> <code>spec.config.json</code> holds a non-empty
+            <code>gate</code> and an integer <code>expected_gate_pass</code>. Running that gate command in the
+            main tree reproduces exactly that number.</p>
+          <p class="check counter"><span class="k">Counter</span> In a project whose gate is already red,
+            <code>expected_gate_pass</code> is <code>null</code> and <code>gate_status</code> is <code>"red"</code>
+            with the first failure's text. No green number is invented.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="skills/spec-init/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="A03"></span>
+        <div class="body">
+          <p class="sentence">The worktree recipe is what actually closed the gap, in the order it
+            closed it.</p>
+          <p class="check"><span class="k">Check</span> <code>git worktree add --detach /tmp/probe HEAD</code>,
+            then the commands in <code>worktree_recipe[]</code> verbatim, then the gate — the pass count
+            equals <code>expected_gate_pass</code>. Each entry carries the error that made it necessary.</p>
+          <p class="check counter"><span class="k">Counter</span> In a project whose fresh worktree is green
+            untouched, <code>worktree_recipe</code> stays <code>[]</code> — it is not filled with an
+            <code>install</code> that proves nothing.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="hard"></span><span class="seam mono" data-seam="skills/spec-init/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="A04"></span>
+        <div class="body">
+          <p class="sentence">What the gate does not cover is written down next to it.</p>
+          <p class="check"><span class="k">Check</span> <code>gate_gaps[]</code> names every check the gate
+            command does not run — typecheck under a transpiling runner (<code>tsx</code>,
+            <code>ts-node</code>, <code>swc</code>, <code>babel-jest</code>), lint, format — one sentence each,
+            with whether the missing check is currently clean.</p>
+          <p class="check counter"><span class="k">Counter</span> A check the gate already runs does not
+            appear in <code>gate_gaps</code>. On a project whose gate is <code>test &amp;&amp; tsc --noEmit</code>,
+            typecheck is absent from the list.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="skills/spec-init/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="A05"></span>
+        <div class="body">
+          <p class="sentence">Tick 0 reads the configuration instead of re-deriving it, and says where
+            its numbers came from.</p>
+          <p class="check"><span class="k">Check</span> With <code>specs/spec.config.json</code> present,
+            tick 0 skips steps 3–5 and copies <code>gate</code>, <code>expected_gate_pass</code> and
+            <code>worktree_recipe</code> into <code>run.json</code> verbatim; the tick report names the config
+            file as the source.</p>
+          <p class="check counter"><span class="k">Counter</span> Without the file, tick 0 behaves exactly as
+            it does today — guessing the gate and probing a worktree.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="skills/run-spec/SKILL.md scripts/runspec.py"></span><span class="chip grey" data-depends="A02 A03"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="A06"></span>
+        <div class="body">
+          <p class="sentence">A configuration that has gone stale is noticed rather than believed.</p>
+          <p class="check"><span class="k">Check</span> <code>spec.config.json</code> records
+            <code>measured_at</code> and the commit it was measured at. If any dependency manifest or
+            lockfile has changed since that commit, tick 0 re-runs the gate once and reports the
+            difference before dispatching.</p>
+          <p class="check counter"><span class="k">Counter</span> If nothing relevant changed, tick 0 does not
+            re-measure — the config's whole point is that it is cheap.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="skills/run-spec/SKILL.md scripts/runspec.py"></span><span class="chip grey" data-depends="A05"></span></p>
+        </div>
+      </li>
+
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>B · A spec is written, not generated</h2>
+  <div class="card group">
+    <div class="grouphead"><span class="label">new-spec</span><span class="label">6 criteria</span></div>
+    <ul class="crits">
+
+      <li class="crit">
+        <span class="id mono" data-id="B01"></span>
+        <div class="body">
+          <p class="sentence"><code>/new-spec foo</code> produces exactly one file, in a place you could
+            have predicted.</p>
+          <p class="check"><span class="k">Check</span> The file is
+            <code>specs/&lt;nnnn&gt;-foo.spec.html</code>, where <code>nnnn</code> is the highest existing
+            number plus one, four digits.</p>
+          <p class="check counter"><span class="k">Counter</span> <code>/new-spec Foo Bar!</code> yields
+            <code>0002-foo-bar.spec.html</code> — no spaces, no punctuation, no second file anywhere.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="simple"></span><span class="seam mono" data-seam="skills/new-spec/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="B02"></span>
+        <div class="body">
+          <p class="sentence">The "Today" section describes the code as it is, from having looked at
+            it.</p>
+          <p class="check"><span class="k">Check</span> Every bullet under "Today" cites a file with a line
+            number, or a command with its actual output. The cited lines exist and say what the bullet
+            claims.</p>
+          <p class="check counter"><span class="k">Counter</span> For a topic with nothing in the repo yet,
+            the section says so in one line instead of describing something invented.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="skills/new-spec/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="B03"></span>
+        <div class="body">
+          <p class="sentence">Every criterion in the document names a way it could fail.</p>
+          <p class="check"><span class="k">Check</span> Each <code>li.crit</code> carries a
+            <code>p.check</code> naming a file, a command, an input and an expected output, and a
+            <code>p.counter</code> naming the case that must <i>not</i> trigger.</p>
+          <p class="check counter"><span class="k">Counter</span> A claim whose failure cannot be named —
+            "works correctly", "is fast enough" — does not appear as a criterion at all. It appears
+            under Open questions, where it counts toward nothing.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="skills/new-spec/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="B04"></span>
+        <div class="body">
+          <p class="sentence">Every decision the interview settled is in the document with its reason,
+            and only the decisions that changed something are.</p>
+          <p class="check"><span class="k">Check</span> Each <code>li.decision</code> holds the decision and
+            a <code>.why</code>, and names at least one criterion id it changed.</p>
+          <p class="check counter"><span class="k">Counter</span> A question whose answer changed no
+            criterion is not recorded as a decision — so the section cannot be padded with agreement.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="skills/new-spec/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="B05"></span>
+        <div class="body">
+          <p class="sentence">A spec is one file you can send to someone.</p>
+          <p class="check"><span class="k">Check</span> The file references no external host except
+            <code>fonts.googleapis.com</code> and <code>fonts.gstatic.com</code>: no
+            <code>&lt;script src&gt;</code>, no stylesheet link to a sibling file, no remote image. Opened
+            from disk with no server it renders complete; published as an Artifact it renders in light
+            and dark.</p>
+          <p class="check counter"><span class="k">Counter</span> It carries no <code>&lt;!doctype&gt;</code>,
+            <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code> or <code>&lt;body&gt;</code> tag — those break
+            the Artifact wrapper, and browsers supply them anyway.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="simple"></span><span class="seam mono" data-seam="skills/new-spec/SKILL.md"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="B06"></span>
+        <div class="body">
+          <p class="sentence">Spec and dashboard read as one system, from one source.</p>
+          <p class="check"><span class="k">Check</span> The colour tokens exist exactly once in the
+            repository: <code>grep -rn -- '--ground:' --include='*.py' --include='*.html'
+            --include='*.css' .</code> outside <code>specs/</code> returns one file, and both the dashboard
+            generator and the spec template read from it.</p>
+          <p class="check counter"><span class="k">Counter</span> A generated <code>dashboard.html</code> and
+            a generated <code>*.spec.html</code> still each contain the full style inline — sharing a
+            source must not make either of them depend on a file at view time.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="scripts/runspec.py shared/theme.css"></span></p>
+        </div>
+      </li>
+
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>C · The document is the register's source</h2>
+  <div class="card group">
+    <div class="grouphead"><span class="label">runspec.py</span><span class="label">4 criteria</span></div>
+    <ul class="crits">
+
+      <li class="crit">
+        <span class="id mono" data-id="C01"></span>
+        <div class="body">
+          <p class="sentence">The register is parsed out of the spec, not re-worded out of it.</p>
+          <p class="check"><span class="k">Check</span>
+            <code>runspec.py init --from-spec specs/0001-spec-workflow.spec.html</code> writes a register
+            with exactly as many criteria as the file has <code>li.crit</code> elements (18), each with
+            <code>id</code>, <code>criterion</code>, <code>check</code>, <code>reachable</code>,
+            <code>complexity</code>, <code>seam</code>, <code>depends_on</code> — ids and chips from the
+            <code>data-</code> attributes, prose from the text of <code>.sentence</code>,
+            <code>.check</code> and <code>.counter</code>, with the label spans
+            (<code>.k</code>) excluded — measured: a parser that keeps them writes
+            <i>"Check With specs/…"</i> into every register entry. Standard library only
+            (<code>html.parser</code> suffices; <code>getpos()</code> gives the line for errors).</p>
+          <p class="check counter"><span class="k">Counter</span> An <code>li.crit</code> missing a
+            <code>data-id</code> or a <code>.check</code> aborts with the element's position named. It is
+            never skipped quietly — a criterion that vanishes at parse time is the one failure mode
+            that looks like success.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="hard"></span><span class="seam mono" data-seam="scripts/runspec.py"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="C02"></span>
+        <div class="body">
+          <p class="sentence">A broken graph fails at parse time, not six ticks later.</p>
+          <p class="check"><span class="k">Check</span> A <code>data-depends</code> pointing at an id that
+            does not exist, or a cycle, makes <code>--from-spec</code> exit non-zero naming the ids
+            involved — before any run directory is written.</p>
+          <p class="check counter"><span class="k">Counter</span> A valid graph passes, and
+            <code>runspec.py status</code> reports the same <code>READY NOW</code> set it would have for a
+            hand-written register.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="scripts/runspec.py"></span><span class="chip grey" data-depends="C01"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="C03"></span>
+        <div class="body">
+          <p class="sentence">A parsed criterion still has to be measured before it counts.</p>
+          <p class="check"><span class="k">Check</span> Every criterion from <code>--from-spec</code> lands
+            as <code>open</code>. Tick 0 then runs the "was this already true?" pass and, where it was,
+            sets <code>met</code> with evidence <i>and</i> flags it in the report as already true — not
+            as progress this run made.</p>
+          <p class="check counter"><span class="k">Counter</span> No criterion is ever written as
+            <code>met</code> by the parser itself, whatever the HTML says.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="hard"></span><span class="seam mono" data-seam="skills/run-spec/SKILL.md"></span><span class="chip grey" data-depends="C01"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="C04"></span>
+        <div class="body">
+          <p class="sentence">When measurement contradicts the spec, the contradiction is visible and
+            the spec file is untouched.</p>
+          <p class="check"><span class="k">Check</span> The disagreement lands in the register as
+            <code>corrections[]</code> — original wording, measured value, reason — and appears on the
+            dashboard. During the run <code>git status --short specs/</code> stays empty.</p>
+          <p class="check counter"><span class="k">Counter</span> The closing report proposes the patch to
+            the spec file and does not apply it. A run that edits the document it is judged against
+            cannot be judged.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="hard"></span><span class="seam mono" data-seam="skills/run-spec/SKILL.md scripts/runspec.py"></span><span class="chip grey" data-depends="C01"></span></p>
+        </div>
+      </li>
+
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>D · Three skills, one install</h2>
+  <div class="card group">
+    <div class="grouphead"><span class="label">packaging</span><span class="label">2 criteria</span></div>
+    <ul class="crits">
+
+      <li class="crit">
+        <span class="id mono" data-id="D01"></span>
+        <div class="body">
+          <p class="sentence">One install command makes all three commands available, and a stale
+            hand-installed copy is called out by name.</p>
+          <p class="check"><span class="k">Check</span> After <code>./install.sh</code>,
+            <code>/spec-init</code>, <code>/new-spec</code> and <code>/run-spec</code> are all available in a
+            fresh session and resolve to this checkout.</p>
+          <p class="check counter"><span class="k">Counter</span> Against the real case on this machine —
+            <code>~/.claude/skills/run-spec</code> is a directory, not a symlink — it still refuses to
+            delete anything, but prints the path to move aside and the command to do it. Today it
+            refuses without saying how, which is why an outdated copy has been running.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="medium"></span><span class="seam mono" data-seam="install.sh"></span></p>
+        </div>
+      </li>
+
+      <li class="crit">
+        <span class="id mono" data-id="D02"></span>
+        <div class="body">
+          <p class="sentence">The specs folder can be read at a glance from the command line.</p>
+          <p class="check"><span class="k">Check</span> <code>runspec.py specs</code> lists each
+            <code>specs/*.spec.html</code> with its number, title, criterion count and run status — no
+            run / running / <i>n</i> of <i>m</i> met — resolved against
+            <code>~/.claude/runs/&lt;project&gt;/</code>.</p>
+          <p class="check counter"><span class="k">Counter</span> In a project with no <code>specs/</code>
+            it says so and exits zero, rather than raising.</p>
+          <p class="meta"><span class="chip" data-reachable="build"></span><span class="chip grey" data-complexity="simple"></span><span class="seam mono" data-seam="scripts/runspec.py"></span></p>
+        </div>
+      </li>
+
+    </ul>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>Decisions</h2>
+  <div class="stack">
+    <div class="decision">HTML is the format <code>/new-spec</code> writes; Markdown stays readable input for run-spec.
+      <span class="why">Because one file can be both the document a person reads and the structure a
+      parser reads — and it publishes as an Artifact without a build step. Changes B05, C01.</span></div>
+    <div class="decision">Every machine field appears exactly once, as a <code>data-</code> attribute, and the page
+      renders it with <code>content: attr()</code>.
+      <span class="why">Because a value written twice — once for the eye, once for the parser — drifts,
+      and the drift is invisible until a run acts on the stale half. Changes C01.</span></div>
+    <div class="decision">The spec lives in the repository; run state does not.
+      <span class="why">Because a spec is source — reviewed, diffed, blamed — while a register is state,
+      and mixing them is what the "no foreign checkout gets polluted" rule was protecting against.
+      Changes A01, C04.</span></div>
+    <div class="decision">run-spec never edits a spec file during a run.
+      <span class="why">Because a run that rewrites the document it is judged against cannot be judged.
+      Corrections go to the register and are proposed as a patch at the end. Changes C04.</span></div>
+    <div class="decision">A parsed register starts entirely <code>open</code>.
+      <span class="why">Because "a register that starts at 40 % green because nobody looked is a lie
+      with a head start" — and a machine-readable spec makes that lie cheaper to tell. Changes C03.</span></div>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>Open questions</h2>
+  <div class="stack">
+    <div class="question">One run per spec, or one run spanning several?
+      <span class="lean">Leaning one-to-one: the register's percentage means nothing if its source is
+      two documents. But a spec that turns out to be three runs has no way to say so yet.</span></div>
+    <div class="question">What happens to a spec once its run closes — a status in the file, a move to
+      <code>specs/_done/</code>, or nothing?
+      <span class="lean">Anything written back into the file conflicts with the decision above. Nothing
+      is the honest default until the closing report has proven it needs more.</span></div>
+    <div class="question">Should <code>/spec-init</code> write a section into the project's
+      <code>CLAUDE.md</code>?
+      <span class="lean">It would make the workflow discoverable to every session. It also edits a file
+      the project owns, on a first run, which is exactly the kind of thing that makes people distrust
+      a tool.</span></div>
+    <div class="question">Can <code>/new-spec</code> convert an existing Markdown spec instead of
+      interviewing from scratch?
+      <span class="lean">Useful, and the fastest way to a bad register: the conversion would inherit
+      claims nobody can name a failure for. If it happens, it interviews about those claims rather
+      than transcribing them.</span></div>
+    <div class="question">Is <code>content: attr()</code> the right call for the seam paths, which a
+      reader may want to copy?
+      <span class="lean">Generated text is not selectable in most browsers. The single-source rule is
+      worth more than copyable paths — but this is the criterion most likely to be overturned by
+      someone actually using the document.</span></div>
+  </div>
+</section>
+
+<div class="foot">
+  <span>18 criteria · 18 <code>build</code> · 0 blocked on data, third parties or production</span>
+  <span>run it: <code>/loop 10m /run-spec specs/0001-spec-workflow.spec.html</code></span>
+</div>
+
+</div>
