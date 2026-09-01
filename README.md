@@ -166,10 +166,57 @@ script rather than estimated. But the specification errors were worth more than
 the fix, and none of them would have surfaced if the agents had been told to
 satisfy their criteria rather than test them.
 
+## Where specs live
+
+A spec is source — reviewed, diffed, blamed — so it belongs in the repository it
+describes, under `specs/`. Run state does not; that stays outside, and the two
+are never mixed.
+
+The format is HTML for one reason: a single file can be both the document a
+person reads and the structure a parser reads. Every machine field is written
+exactly **once**, as a `data-` attribute, and the page renders it back with
+`content: attr()` — abridged, but this is the real shape:
+
+```html
+<li class="crit">
+  <span class="id" data-id="C03"></span>
+  <p class="sentence">A reference letter without a heading is still detected.</p>
+  <p class="check">fixtures/sample-7.html yields exactly 2 entries, both source='body'.</p>
+  <p class="check counter">sample-3.html, which has no reference letter, yields 0.</p>
+  <span class="chip" data-reachable="build"></span>
+  <span class="chip" data-complexity="medium"></span>
+  <span class="seam" data-seam="src/detect/references.ts"></span>
+  <span class="chip" data-depends="C01"></span>
+</li>
+```
+
+A value written twice — once for the eye, once for the parser — drifts, and the
+drift stays invisible until a run acts on the stale half. Opened from disk it is
+a readable document; published as an Artifact it is a link you can send someone.
+
+Markdown is unchanged: `/run-spec docs/SPEC.md` works exactly as before. HTML is
+what the folder is *for*, not a requirement it imposes.
+
+### The workflow around the folder is specified, not built
+
+[`specs/0001-spec-workflow.spec.html`](specs/0001-spec-workflow.spec.html) asks
+for three things this repository does not have yet:
+
+| | |
+|---|---|
+| `/spec-init` | Measure the gate, what the gate does not cover, and the worktree recipe **once**, and check them into `specs/spec.config.json` — so tick 0 reads them instead of deriving them on every run. They are properties of the project, not of the run. |
+| `/new-spec` | Interview first — read the code as it is, ask only what changes the work — then write the document. A generator produces a beautiful page full of wishes. |
+| `runspec.py --from-spec` | Parse the register out of the document instead of re-wording it out of prose. Same move as `seam`/`depends_on`: computed instead of guessed. |
+
+So the first spec in this repo is the spec for its own next feature. That is
+also the only honest way to find out whether the format survives contact with a
+real run — and the register it produces will say so either way.
+
 ## Run state
 
-Nothing lives in your repository except the branches. Run state sits under
-`~/.claude/runs/<project>/<run>/` — no foreign checkout gets polluted:
+Nothing of the *run* lives in your repository — the spec does, the state does
+not. It sits under `~/.claude/runs/<project>/<run>/`, so no foreign checkout
+gets polluted:
 
 ```
 register.json    criteria, checks, seams, dependencies, evidence
@@ -193,6 +240,7 @@ scripts/runspec.py active <slug>
 SKILL.md              the tick, the routing table, the agent brief, the traps
 reference/register.md how to turn a document into checkable criteria
 scripts/runspec.py    run state + dashboard generator, no dependencies
+specs/                this repo's own specs, in the format described above
 install.sh            symlink into ~/.claude/skills
 ```
 
